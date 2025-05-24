@@ -3,26 +3,59 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export function activate(context: vscode.ExtensionContext) {
+	console.log('GitIgnore Generator extension is now active!');
+
 	// Register the command to create .gitignore
 	let createGitignoreCommand = vscode.commands.registerCommand('gitignore-gen.createGitignore', async () => {
+		console.log('Create .gitignore command triggered');
 		await createGitignoreFile();
 	});
 
 	// Watch for .gitignore file creation and closure
 	let fileWatcher = vscode.workspace.onDidSaveTextDocument(async (document: vscode.TextDocument) => {
-		if (document.fileName.endsWith('.gitignore') && document.getText().trim() === '') {
-			await populateGitignoreFile(document.uri.fsPath);
+		if (document.fileName.endsWith('.gitignore')) {
+			const content = document.getText().trim();
+			console.log('🔍 File saved:', document.fileName, 'Content length:', content.length);
+			if (content === '') {
+				console.log('✅ Empty .gitignore detected on save, populating...');
+				// Add a small delay to ensure file operations are complete
+				setTimeout(async () => {
+					await populateGitignoreFile(document.uri.fsPath);
+				}, 100);
+			}
 		}
 	});
 
-	// Watch for when files are closed
+	// Watch for when files are closed - this is the main trigger
 	let closeWatcher = vscode.workspace.onDidCloseTextDocument(async (document: vscode.TextDocument) => {
-		if (document.fileName.endsWith('.gitignore') && document.getText().trim() === '') {
-			await populateGitignoreFile(document.uri.fsPath);
+		if (document.fileName.endsWith('.gitignore')) {
+			const content = document.getText().trim();
+			console.log('🔍 File closed:', document.fileName, 'Content length:', content.length);
+			if (content === '') {
+				console.log('✅ Empty .gitignore detected on close, populating...');
+				// Add a small delay to ensure file operations are complete
+				setTimeout(async () => {
+					await populateGitignoreFile(document.uri.fsPath);
+				}, 100);
+			}
 		}
 	});
 
-	context.subscriptions.push(createGitignoreCommand, fileWatcher, closeWatcher);
+	// Also watch for file system changes to catch manual .gitignore creation
+	let fsWatcher = vscode.workspace.createFileSystemWatcher('**/.gitignore');
+	fsWatcher.onDidCreate(async (uri) => {
+		console.log('🔍 .gitignore file created:', uri.fsPath);
+		// Small delay to let VS Code finish creating the file
+		setTimeout(async () => {
+			const content = fs.readFileSync(uri.fsPath, 'utf8').trim();
+			if (content === '') {
+				console.log('✅ Empty .gitignore detected via file system watcher, populating...');
+				await populateGitignoreFile(uri.fsPath);
+			}
+		}, 200);
+	});
+
+	context.subscriptions.push(createGitignoreCommand, fileWatcher, closeWatcher, fsWatcher);
 }
 
 async function createGitignoreFile() {
@@ -34,6 +67,7 @@ async function createGitignoreFile() {
 	}
 
 	const gitignorePath = path.join(workspaceFolder, '.gitignore');
+	console.log('Creating .gitignore at:', gitignorePath);
 
 	if (fs.existsSync(gitignorePath)) {
 		const choice = await vscode.window.showWarningMessage(
@@ -47,6 +81,7 @@ async function createGitignoreFile() {
 
 	// Create empty .gitignore file
 	fs.writeFileSync(gitignorePath, '');
+	console.log('Empty .gitignore created');
 
 	// Open the file
 	const document = await vscode.workspace.openTextDocument(gitignorePath);
@@ -59,16 +94,51 @@ async function populateGitignoreFile(gitignorePath: string) {
 	const workspaceFolder = path.dirname(gitignorePath);
 
 	try {
-		const projectTypes = detectProjectTypes(workspaceFolder);
-		const gitignoreContent = generateGitignoreContent(projectTypes);
+		console.log('🚀 Starting populateGitignoreFile for:', gitignorePath);
+		console.log('📁 Workspace folder:', workspaceFolder);
 
+		// Check if file exists and is empty
+		if (!fs.existsSync(gitignorePath)) {
+			console.log('❌ Gitignore file does not exist:', gitignorePath);
+			return;
+		}
+
+		// Read file content from disk (not from VS Code document)
+		const currentContent = fs.readFileSync(gitignorePath, 'utf8').trim();
+		console.log('📄 Current file content length:', currentContent.length);
+		
+		if (currentContent !== '') {
+			console.log('⚠️ Gitignore file is not empty, skipping population. Content:', currentContent.substring(0, 50));
+			return;
+		}
+
+		console.log('🔍 Detecting project types for workspace:', workspaceFolder);
+		const projectTypes = detectProjectTypes(workspaceFolder);
+		console.log('🎯 Detected project types:', projectTypes);
+
+		if (projectTypes.length === 0) {
+			console.log('⚠️ No project types detected, using generic');
+			projectTypes.push('generic');
+		}
+
+		const gitignoreContent = generateGitignoreContent(projectTypes);
+		console.log('📝 Generated content length:', gitignoreContent.length);
+		console.log('📝 Content preview:', gitignoreContent.substring(0, 100) + '...');
+
+		// Write the content to the file
 		fs.writeFileSync(gitignorePath, gitignoreContent);
+		console.log('✅ Content written to file');
 
 		const detectedTypesString = projectTypes.length > 0 ? projectTypes.join(', ') : 'generic';
+		
+		// Show success message
 		vscode.window.showInformationMessage(
-			`.gitignore populated for detected project type(s): ${detectedTypesString}`
+			`🎉 .gitignore populated for detected project type(s): ${detectedTypesString}`
 		);
+
+		console.log('🎉 Successfully populated .gitignore with types:', detectedTypesString);
 	} catch (error) {
+		console.error('💥 Error populating .gitignore:', error);
 		vscode.window.showErrorMessage(`Error populating .gitignore: ${error}`);
 	}
 }
