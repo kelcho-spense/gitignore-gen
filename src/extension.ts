@@ -106,7 +106,7 @@ async function populateGitignoreFile(gitignorePath: string) {
 		// Read file content from disk (not from VS Code document)
 		const currentContent = fs.readFileSync(gitignorePath, 'utf8').trim();
 		console.log('📄 Current file content length:', currentContent.length);
-		
+
 		if (currentContent !== '') {
 			console.log('⚠️ Gitignore file is not empty, skipping population. Content:', currentContent.substring(0, 50));
 			return;
@@ -130,7 +130,7 @@ async function populateGitignoreFile(gitignorePath: string) {
 		console.log('✅ Content written to file');
 
 		const detectedTypesString = projectTypes.length > 0 ? projectTypes.join(', ') : 'generic';
-		
+
 		// Show success message
 		vscode.window.showInformationMessage(
 			`🎉 .gitignore populated for detected project type(s): ${detectedTypesString}`
