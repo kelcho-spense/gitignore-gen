@@ -1,0 +1,39 @@
+# Node.js dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+
+# Logs
+*.log
+
+# Debugger config
+.vscode/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# npm package manager files
+npm-debug.log
+package-lock.json
+
+# pnpm package manager files
+pnpm-lock.yaml
+
+# OS files
+.vscode-test/
+
+# Python files (since you have a requirements.txt, this might be applicable)
+*.pyc
+__pycache__/
+
+# Editor settings
+.idea/
+
+# TypeScript output
+*.tsbuildinfo
+
+# esbuild output
+esbuild.js
